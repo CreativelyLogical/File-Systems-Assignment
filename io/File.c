@@ -185,6 +185,33 @@ int find_parent_file_path(FILE *disk, char *path) {
 	return parentInode;;
 }
 
+int find_duplicates(FILE *disk, char *name, int parentInode) {
+	int no_duplicates = -1;
+	Inode parent = return_inode_struct(disk, parentInode);
+
+	for (int i = 0; i < parent.num_children; i++) {
+		int childInode = parent.childrenInodes[i];
+		Inode child = return_inode_struct(disk, childInode);
+		char fileBuffer[512];
+		readBlock(disk, child.directBlock[0], fileBuffer);
+		if (child.type == 1) { // child is a directory
+			Directory tmpDir;
+			memcpy((char*) &tmpDir, fileBuffer, 68);
+			if (strcmp(name, tmpDir.name) == 0) {
+				return 1;
+			}
+		}
+		else { // child is a file
+			File tmpFile;
+			memcpy((char*) &tmpFile, fileBuffer, sizeof(tmpFile));
+			if (strcmp(name, tmpFile.name) == 0) {
+				return 1;
+			}
+		}
+	}
+	return no_duplicates;
+}
+
 
 
 int create_file(FILE *disk, char *name, int type, char *path) {
@@ -194,24 +221,26 @@ int create_file(FILE *disk, char *name, int type, char *path) {
 	if (strcmp(path, "/") == 0) {
 		
 		printf("iteration: 1\n");
-		Inode root = return_inode_struct(disk, 3);
+		// Inode root = return_inode_struct(disk, 3);
 		
-		printf("the root currently has %d children \n", root.num_children);
+		// printf("the root currently has %d children \n", root.num_children);
 
-		for (int i = 0; i < root.num_children; i++) {
-			printf("howdy\n");
-			int childInode = root.childrenInodes[i];
-			// printf("hi\n");
-			Inode childInodeStruct = return_inode_struct(disk, childInode);
-			char fileBuffer[512];
-			readBlock(disk, childInodeStruct.directBlock[0], fileBuffer); 
-			Directory tmpDir;
-			memcpy((char*) &tmpDir, fileBuffer, 68);
-			// printf("name is %s and tmpDir.name is %s \n", name, tmpDir.name);
-			if (strcmp(name, tmpDir.name) == 0) {
-				printf("file already exists in this directory\n");
-				return -1;
-			}
+		if (find_duplicates(disk, name, ROOT_INODE) == 1) {
+			printf("file already exists in this directory\n");
+			return -1;
+		}
+	} else {
+		char path_to_tokenize[strlen(path)]; 
+
+		strncpy(path_to_tokenize, path, strlen(path));
+
+		path_to_tokenize[strlen(path)] = '\0';
+
+		int parent = find_parent_file_path(disk, path_to_tokenize);
+
+		if (find_duplicates(disk, name, parent) == 1) {
+			printf("file already exists in this directory\n");
+			return -1;
 		}
 	}
 
@@ -444,44 +473,6 @@ void InitLLFS() {
 	writeBlock(disk, 2, dataBitMap);
 
 
-
-
-    // while (1) {
-    //     int choice;
-
-    //     scanf("%d", &choice);
-
-    //     if (choice == 1) {
-    //         create_file(disk, "file1", 0, "/");
-	// 		// printf("iteration: 3\n");
-	// 		Inode tmp3 = return_inode_struct(disk, ROOT_INODE);
-	// 		// printf("tmp3 has %d children \n", tmp3.num_children);
-    //         // print_buffer(dataBitMap, 512);
-    //     }
-    //     else if (choice == 2) {
-    //         create_file(disk, "dir1", 1, "/");
-    //         // print_buffer(dataBitMap, 512);            
-    //     }
-    //     else if (choice == 3) {
-    //         create_file(disk, "dir2", 1, "/");
-    //         // print_buffer(dataBitMap, 512);            
-    //     }
-    //     else if (choice == 4) {
-    //         create_file(disk, "dir3", 1, "/");
-    //         // print_buffer(dataBitMap, 512);            
-    //     }
-    //     else if (choice == 5) {
-    //         create_file(disk, "file2", 0, "/dir2");
-    //         // print_buffer(dataBitMap, 512);            
-    //     }
-	// 	else if (choice == 6) {
-	// 		create_file(disk, "file3", 0, "/dir3");
-	// 	}
-    //     else {
-    //         break;
-    //     }
-    // }
-
 	printf("And now here are the children of root(/)\n");
 	list_children(disk, ROOT_INODE);
 
@@ -491,41 +482,6 @@ void InitLLFS() {
 	printf("And now here are the children of dir3\n");
 	list_children(disk, 7);
 	// list_child_inodes(disk, ROOT_INODE);
-	
-
-
-	// create_file(disk, "file1", 0, "/");
-
-	// create_file(disk, "dir1", 1, "/");
-
-	// create_file(disk, "dir2", 1, "/");
-
-	// create_file(disk, "dir3", 1, "/");
-	// create_file(disk, "dir2", 1, "/dir1");
-
-	// create_file(disk, "file2", 0, "/dir2");
-
-	// printf("Finally, let's list the children of the root directory\n");
-
-	// list_children(disk, ROOT_INODE);
-
-	// Inode tmp1 = return_inode_struct(disk, rootInode);
-
-	// printf("tmp1.num_children is %d \n", tmp1.num_children);
-
-
-	// Inode tmp2 = return_inode_struct(disk, rootInode);
-
-
-	// printf("tmp2.num_children is %d \n", tmp2.num_children);
-
-	// Inode tmp3 = return_inode_struct(disk, rootInode);
-
-
-	// printf("tmp3.num_children is %d \n", tmp3.num_children);
-
-	// print_buffer(dataBitMap, 512);
-	// printf("dir 2 has %d children \n", inode[6].num_children);
 
 	free(buffer);
 	fclose(disk);
