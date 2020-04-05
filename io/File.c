@@ -13,18 +13,33 @@ char inodeBitMap[NUM_INODES / 8];
 char dataBitMap[NUM_BLOCKS / 8];
 
 
-char get_bit(char bitmap[], int bit_num) {
-	//         get byte num    shift       get val
-	return (bitmap[bit_num / 8] >> bit_num) & 1;
+// char get_bit(char bitmap[], int bit_num) {
+// 	//         get byte num    shift       get val
+// 	return (bitmap[bit_num / 8] >> bit_num) & 1;
+// }
+
+char get_bit(char bitmap[], int index) {
+	return 1 & (bitmap[index/8] >> (index % 8));
 }
 
-void set_bit(char bitmap[], int bit_num) {
-	// printf("I received number %d \n", bit_num);
-	// int byte_index = bit_num / 8;
-	// int bit_index = bit_num % 8;
+// void set_bit(char bitmap[], int bit_num) {
+// 	// printf("I received number %d \n", bit_num);
+// 	// int byte_index = bit_num / 8;
+// 	// int bit_index = bit_num % 8;
 
-	// bitmap[byte_index] |= 1UL << bit_index;
-	bitmap[bit_num / 8] |= 1 << (bit_num & 7);
+// 	// bitmap[byte_index] |= 1UL << bit_index;
+// 	bitmap[bit_num / 8] |= 1 << (bit_num & 7);
+// }
+
+void toggle_bit(char *array, int index) {
+	array[index/8] ^= 1 << (index % 8);
+}
+
+void set_bit(char bitmap[], int index, char value) {
+	if(value != 0 && value != 1) return;
+	bitmap[index/8] ^= 1 << (index % 8);
+	if(get_bit(bitmap, index) == value) return;
+	toggle_bit(bitmap, index);
 }
 
 void unset_bit(char bitmap[], int bit_num) {
@@ -38,8 +53,8 @@ void unset_bit(char bitmap[], int bit_num) {
 int get_free_inode() {
 	for (int i = 0; i < NUM_INODES; i++) {
 		if (get_bit(inodeBitMap, i) == 0) {
-			set_bit(inodeBitMap, i); // mark it allocated if it's free
-			set_bit(dataBitMap, i);
+			set_bit(inodeBitMap, i, 1); // mark it allocated if it's free
+			set_bit(dataBitMap, i, 1);
 			return i; // return inode index
 		}
 	}
@@ -65,7 +80,8 @@ int get_free_block() {
 	// because blocks 4 to 132 are for inodes 
 	for (int i = 133; i < NUM_BLOCKS; i++) {
 		if (get_bit(dataBitMap, i) == 0) {
-			set_bit(dataBitMap, i);
+			printf("block %d is free \n", i);
+			set_bit(dataBitMap, i, 1);
 			return i;
 		}
 	}
@@ -90,7 +106,7 @@ Inode return_inode_struct(FILE *disk, int inodeNum) {
 }
 
 void list_children(FILE *disk, int inodeNum) {
-	printf("im here yalll\n");
+	// printf("im here yalll\n");
 	Inode curInode = return_inode_struct(disk, inodeNum);
 
 	for (int i = 0; i < curInode.num_children; i++) {
@@ -102,6 +118,16 @@ void list_children(FILE *disk, int inodeNum) {
 		File curFile;
 		memcpy((char*) &curFile, fileBuffer, 68);
 		printf("the name of the file is %s \n", curFile.name);
+	}
+}
+
+void list_child_inodes(FILE *disk, int inodeNum) {
+	Inode curInode = return_inode_struct(disk, inodeNum);
+
+	for (int i = 0; i < curInode.num_children; i++) {
+		int childInode = curInode.childrenInodes[i];
+		Inode childInodeStruct = return_inode_struct(disk, childInode);
+		printf("child %d is %d and it starts at block %d\n", i, childInode, childInodeStruct.directBlock[0]);
 	}
 }
 
@@ -196,7 +222,7 @@ int create_file(FILE *disk, char *name, int type, char *path) {
 
 	int blockNum = get_free_block();
 
-	// printf("blockNum for %s is %d \n", name, blockNum);
+	printf("inode %d's block number is %d \n", inodeNum, blockNum);
 
 	// if (blockNum == -1) {
 	// 	printf("what's going on?\n");
@@ -243,14 +269,14 @@ int create_file(FILE *disk, char *name, int type, char *path) {
 		directory[inodeNum].inode = inodeNum;
 		strcpy(directory[inodeNum].name, name);
 		
-		set_bit(dataBitMap, blockNum + 1); // just giving it some space
-		set_bit(dataBitMap, blockNum + 2);
+		set_bit(dataBitMap, blockNum + 1, 1); // just giving it some space
+		set_bit(dataBitMap, blockNum + 2, 1);
 	}  else { // file is a regular file
 
 		// because a file is 6212 bytes, it takes up 13 blocks, hence mark the next
 		// 12 blocks as allocated
 		for (int i = 1; i <= 12; i++) {
-			set_bit(dataBitMap, blockNum + i);
+			set_bit(dataBitMap, blockNum + i, 1);
 			// printf("blocks %d which is byte %d\n", blockNum + i, (blockNum + i) / 8);
 		}
 
@@ -312,6 +338,10 @@ int create_file(FILE *disk, char *name, int type, char *path) {
 	writeBlock(disk, 1, inodeBitMap);
 	writeBlock(disk, 2, dataBitMap);
 
+	if (get_bit(dataBitMap, 144) == 0) {
+		printf("WTF\n");
+	}
+
 	printf("parent now has %d children \n", tmp2.num_children);
 
 	return -1;
@@ -352,14 +382,14 @@ void InitLLFS() {
 	}
 
 	// we won't be using the first 3 inodes, since the first inode will start at 3 (ROOT_INODE)
-	set_bit(inodeBitMap, 0);
-	set_bit(inodeBitMap, 1);
-	set_bit(inodeBitMap, 2);
+	set_bit(inodeBitMap, 0, 1);
+	set_bit(inodeBitMap, 1, 1);
+	set_bit(inodeBitMap, 2, 1);
 
 
-	set_bit(dataBitMap, 0); // superblock
-	set_bit(dataBitMap, 1); // inode bitmap
-	set_bit(dataBitMap, 2); // dataBlock bitmap
+	set_bit(dataBitMap, 0, 1); // superblock
+	set_bit(dataBitMap, 1, 1); // inode bitmap
+	set_bit(dataBitMap, 2, 1); // dataBlock bitmap
 	
 	// set the rest of the dataBlock bitmap to 0
 	for (int i = 3; i < NUM_BLOCKS; i++) {
@@ -372,12 +402,12 @@ void InitLLFS() {
 
 	// Initialize root directory
 	int rootInode = ROOT_INODE;
-	set_bit(dataBitMap, ROOT_INODE); // mark third block as allocated
-	set_bit(inodeBitMap, ROOT_INODE);
+	set_bit(dataBitMap, ROOT_INODE, 1); // mark third block as allocated
+	set_bit(inodeBitMap, ROOT_INODE, 1);
 
 
 	int rootDirBlock = 4;
-	set_bit(dataBitMap, rootDirBlock); 
+	set_bit(dataBitMap, rootDirBlock, 1); 
 
 	// so, so far, we have
 
@@ -414,41 +444,52 @@ void InitLLFS() {
 
 
 
-    while (1) {
-        int choice;
+    // while (1) {
+    //     int choice;
 
-        scanf("%d", &choice);
+    //     scanf("%d", &choice);
 
-        if (choice == 1) {
-            create_file(disk, "file1", 0, "/");
-			// printf("iteration: 3\n");
-			Inode tmp3 = return_inode_struct(disk, ROOT_INODE);
-			// printf("tmp3 has %d children \n", tmp3.num_children);
-            // print_buffer(dataBitMap, 512);
-        }
-        else if (choice == 2) {
-            create_file(disk, "dir1", 1, "/");
-            // print_buffer(dataBitMap, 512);            
-        }
-        else if (choice == 3) {
-            create_file(disk, "dir2", 1, "/");
-            // print_buffer(dataBitMap, 512);            
-        }
-        else if (choice == 4) {
-            create_file(disk, "dir3", 1, "/");
-            // print_buffer(dataBitMap, 512);            
-        }
-        else if (choice == 5) {
-            create_file(disk, "file2", 0, "/dir2");
-            // print_buffer(dataBitMap, 512);            
-        }
-        else {
-            break;
-        }
-    }
+    //     if (choice == 1) {
+    //         create_file(disk, "file1", 0, "/");
+	// 		// printf("iteration: 3\n");
+	// 		Inode tmp3 = return_inode_struct(disk, ROOT_INODE);
+	// 		// printf("tmp3 has %d children \n", tmp3.num_children);
+    //         // print_buffer(dataBitMap, 512);
+    //     }
+    //     else if (choice == 2) {
+    //         create_file(disk, "dir1", 1, "/");
+    //         // print_buffer(dataBitMap, 512);            
+    //     }
+    //     else if (choice == 3) {
+    //         create_file(disk, "dir2", 1, "/");
+    //         // print_buffer(dataBitMap, 512);            
+    //     }
+    //     else if (choice == 4) {
+    //         create_file(disk, "dir3", 1, "/");
+    //         // print_buffer(dataBitMap, 512);            
+    //     }
+    //     else if (choice == 5) {
+    //         create_file(disk, "file2", 0, "/dir2");
+    //         // print_buffer(dataBitMap, 512);            
+    //     }
+	// 	else if (choice == 6) {
+	// 		create_file(disk, "file3", 0, "/dir3");
+	// 	}
+    //     else {
+    //         break;
+    //     }
+    // }
 
 	printf("And now here are the children of root(/)\n");
 	list_children(disk, ROOT_INODE);
+
+	printf("And now here are the children of dir2 \n");
+	list_children(disk, 6);
+
+	printf("And now here are the children of dir3\n");
+	list_children(disk, 7);
+	// list_child_inodes(disk, ROOT_INODE);
+	
 
 
 	// create_file(disk, "file1", 0, "/");
