@@ -47,6 +47,12 @@ int main() {
             create_file(disk, "file4", 0, "/dir1/dir4");
             create_file(disk, "file5", 0, "/dir1/dir4");
         }
+        else if (choice == 9) {
+            delete_file(disk, "dir3", "/");
+        }
+        else  if (choice == 10) {
+            list_children(disk, ROOT_INODE);
+        }
         else {
             break;
         }

@@ -13,23 +13,11 @@ char inodeBitMap[NUM_INODES / 8];
 char dataBitMap[NUM_BLOCKS / 8];
 
 
-// char get_bit(char bitmap[], int bit_num) {
-// 	//         get byte num    shift       get val
-// 	return (bitmap[bit_num / 8] >> bit_num) & 1;
-// }
 
 char get_bit(char bitmap[], int index) {
 	return 1 & (bitmap[index/8] >> (index % 8));
 }
 
-// void set_bit(char bitmap[], int bit_num) {
-// 	// printf("I received number %d \n", bit_num);
-// 	// int byte_index = bit_num / 8;
-// 	// int bit_index = bit_num % 8;
-
-// 	// bitmap[byte_index] |= 1UL << bit_index;
-// 	bitmap[bit_num / 8] |= 1 << (bit_num & 7);
-// }
 
 void toggle_bit(char *array, int index) {
 	array[index/8] ^= 1 << (index % 8);
@@ -185,6 +173,30 @@ int find_parent_file_path(FILE *disk, char *path) {
 	return parentInode;;
 }
 
+int find_child_inode_from_parent(FILE *disk, Inode parent, char *name) {
+	for (int i = 0; i < parent.num_children; i++) {
+		int childInode = parent.childrenInodes[i];
+		Inode child = return_inode_struct(disk, childInode);
+		char fileBuffer[512];
+		readBlock(disk, child.directBlock[0], fileBuffer);
+		if (child.type == 1) {
+			Directory tmpDir;
+			memcpy((char*) &tmpDir, fileBuffer, 68);
+			if (strcmp(name, tmpDir.name) == 0) {
+				return childInode;
+			}
+		} 
+		else {
+			File tmpFile;
+			memcpy((char*) &tmpFile, fileBuffer, sizeof(tmpFile));
+			if (strcmp(name, tmpFile.name) == 0) {
+				return childInode;
+			}
+		}
+	}
+	return -1;
+}
+
 int find_duplicates(FILE *disk, char *name, int parentInode) {
 	int no_duplicates = -1;
 	Inode parent = return_inode_struct(disk, parentInode);
@@ -210,6 +222,87 @@ int find_duplicates(FILE *disk, char *name, int parentInode) {
 		}
 	}
 	return no_duplicates;
+}
+
+
+int delete_file(FILE *disk, char *name, char *path) {
+	printf("hello world\n");
+
+	// find the inode of the file
+	int parentInodeNum;
+
+	Inode parent;
+
+	if (strcmp(path, "/") == 0) {
+		parentInodeNum = ROOT_INODE;
+		parent = return_inode_struct(disk, parentInodeNum);
+	} else {
+		parentInodeNum = find_parent_file_path(disk, path);
+		parent = return_inode_struct(disk, parentInodeNum);
+	}
+
+	int childInodeNum = find_child_inode_from_parent(disk, parent, name);
+
+	if (childInodeNum == -1) {
+		printf("file doesn't exist in this directory\n");
+		return -1;
+	}
+	
+	Inode child = return_inode_struct(disk, childInodeNum);
+
+	char *init = calloc(BLOCK_SIZE, 1);
+
+	int startingBlock = child.directBlock[0];
+
+	// deallocate content storing blocks of file
+	for (int i = 0; i < child.blockCount; i++) {
+		writeBlock(disk, child.directBlock[i], init);
+	}
+
+	// set the blocks of file as free
+	for (int i = 0; i < 13; i++) {
+		unset_bit(dataBitMap, startingBlock + 0);
+	}
+
+	// deallocate inode
+	writeBlock(disk, childInodeNum, init);
+
+	// set the inode as free
+	unset_bit(inodeBitMap, childInodeNum);
+	unset_bit(dataBitMap, childInodeNum);
+
+	/*
+	remove child inode in parent's child inode listings
+	do this in 2 steps:
+		1: get the index of the inode to remove from the parent's childInode array
+		2: starting from the index, shift all elements left, so the element to delete 
+		   will effectively be overwritten
+	*/
+
+	// 1. get the index
+	int index;
+	for (int i = 0; i < parent.num_children; i++) {
+		if (childInodeNum == parent.childrenInodes[i]) {
+			index = i;
+			break;
+		}
+	}
+
+	// 2. shift
+	for (int i = index; i < parent.num_children; i++) {
+		parent.childrenInodes[i] = parent.childrenInodes[i + 1];
+	}
+
+	// finally, decrement the parent's num_children count as well as its last_child_index
+	parent.num_children--;
+	parent.lastChildIndex--;
+
+	inode[parentInodeNum] = parent;
+
+	// update the parent in the disk
+	writeBlock(disk, parentInodeNum, (char*) (inode + parentInodeNum));
+
+	return -1;
 }
 
 
@@ -289,7 +382,6 @@ int create_file(FILE *disk, char *name, int type, char *path) {
 	inode[inodeNum].blockCount = 1;
 	inode[inodeNum].directBlock[0] = blockNum;
 	inode[inodeNum].parentInode = parentInode;
-
 	// set this inode to be a child of the parent inode (IF parent is a directory)
 
 
