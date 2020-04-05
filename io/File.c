@@ -140,7 +140,8 @@ int find_parent_file_path(FILE *disk, char *path) {
 	Inode curInode = return_inode_struct(disk, ROOT_INODE);
 
 	char *root = "/"; // we'll start our search at root
-
+	
+	int parentInode = -1;
 
 	// Note, the only things the tokens SHOULD be are directories
 	while (token != NULL) {
@@ -170,7 +171,8 @@ int find_parent_file_path(FILE *disk, char *path) {
 			// printf("token is %s and the file name is %s \n", token, file[childInode].name);
 			if (strcmp(token, tmpDir.name) == 0) {
 				// printf("match, returning the inode now...\n");
-				return childInode;
+				parentInode = childInode;
+				curInode = return_inode_struct(disk, parentInode);
 			} else {
 				continue;
 			}
@@ -180,7 +182,7 @@ int find_parent_file_path(FILE *disk, char *path) {
 		token = strtok(NULL, "/");
 	}
 
-	return -1;
+	return parentInode;;
 }
 
 
@@ -222,7 +224,7 @@ int create_file(FILE *disk, char *name, int type, char *path) {
 
 	int blockNum = get_free_block();
 
-	printf("inode %d's block number is %d \n", inodeNum, blockNum);
+	printf("file %s inode %d's block number is %d \n", name, inodeNum, blockNum);
 
 	// if (blockNum == -1) {
 	// 	printf("what's going on?\n");

@@ -40,6 +40,13 @@ int main() {
 		else if (choice == 6) {
 			create_file(disk, "file3", 0, "/dir3");
 		}
+        else if (choice == 7) {
+            create_file(disk, "dir4", 1, "/dir1");
+        }
+        else if (choice == 8) {
+            create_file(disk, "file4", 0, "/dir1/dir4");
+            create_file(disk, "file5", 0, "/dir1/dir4");
+        }
         else {
             break;
         }
@@ -53,6 +60,11 @@ int main() {
 
 	printf("And now here are the children of dir3\n");
 	list_children(disk, 7);
+
+    printf("And now here are the children of dir4\n");
+    list_children(disk, 10);
+
+
 
     
 
