@@ -15,7 +15,7 @@ char dataBitMap[NUM_BLOCKS / 8];
 
 
 char get_bit(char bitmap[], int index) {
-	return 1 & (bitmap[index/8] >> (index % 8));
+	return 1 & (bitmap[index/8] >> (index % 8)); // works
 }
 
 
@@ -250,6 +250,12 @@ int delete_file(FILE *disk, char *name, char *path) {
 	
 	Inode child = return_inode_struct(disk, childInodeNum);
 
+	if (child.type == 1) { // child is a directory
+		if (child.num_children != 0) {	// directory is non-empty
+			printf("Cannot remove directory yet.\n");
+			return -1;
+		}
+	}
 	char *init = calloc(BLOCK_SIZE, 1);
 
 	int startingBlock = child.directBlock[0];
@@ -313,7 +319,7 @@ int create_file(FILE *disk, char *name, int type, char *path) {
 	
 	if (strcmp(path, "/") == 0) {
 		
-		printf("iteration: 1\n");
+		// printf("iteration: 1\n");
 		// Inode root = return_inode_struct(disk, 3);
 		
 		// printf("the root currently has %d children \n", root.num_children);
@@ -346,7 +352,7 @@ int create_file(FILE *disk, char *name, int type, char *path) {
 
 	int blockNum = get_free_block();
 
-	printf("file %s inode %d's block number is %d \n", name, inodeNum, blockNum);
+	// printf("file %s inode %d's block number is %d \n", name, inodeNum, blockNum);
 
 	// if (blockNum == -1) {
 	// 	printf("what's going on?\n");
@@ -441,7 +447,7 @@ int create_file(FILE *disk, char *name, int type, char *path) {
 	memcpy((char*) (inode + parentInode), buffer, sizeof(Inode));
 
 
-	printf("parent before had %d chilren \n", inode[parentInode].num_children);
+	// printf("parent before had %d chilren \n", inode[parentInode].num_children);
 
 	// printf("now, modify the struct's contents...\n");
 	inode[parentInode].childrenInodes[inode[parentInode].lastChildIndex] = inodeNum; // add the inode of the file to the parent's children inodes
@@ -465,9 +471,47 @@ int create_file(FILE *disk, char *name, int type, char *path) {
 		printf("WTF\n");
 	}
 
-	printf("parent now has %d children \n", tmp2.num_children);
+	// printf("parent now has %d children \n", tmp2.num_children);
 
 	return -1;
+}
+
+int Touch(char *name, char *path) {
+	FILE* disk = fopen(vdisk_path, "rb+");
+
+	create_file(disk, name, 0, path);
+	printf("Created file %s in %s \n", name, path);
+
+	fclose(disk);
+	
+	return 1;
+}
+
+int Mkdir(char *name, char *path) {
+	FILE* disk = fopen(vdisk_path, "rb+");
+
+	create_file(disk, name, 1, path);
+	printf("Created directory %s in %s \n", name, path);
+
+	fclose(disk);
+
+	return 1;
+}
+
+int List(char *path) {
+	FILE* disk = fopen(vdisk_path, "rb+");
+
+	if (strcmp(path, "/") == 0) {
+		list_children(disk, ROOT_INODE);
+	}
+	else {
+		int inode = find_parent_file_path(disk, path);
+		list_children(disk, inode);
+	}
+
+	fclose(disk);
+
+	return 1;
 }
 
 
@@ -565,14 +609,14 @@ void InitLLFS() {
 	writeBlock(disk, 2, dataBitMap);
 
 
-	printf("And now here are the children of root(/)\n");
-	list_children(disk, ROOT_INODE);
+	// printf("And now here are the children of root(/)\n");
+	// list_children(disk, ROOT_INODE);
 
-	printf("And now here are the children of dir2 \n");
-	list_children(disk, 6);
+	// printf("And now here are the children of dir2 \n");
+	// list_children(disk, 6);
 
-	printf("And now here are the children of dir3\n");
-	list_children(disk, 7);
+	// printf("And now here are the children of dir3\n");
+	// list_children(disk, 7);
 	// list_child_inodes(disk, ROOT_INODE);
 
 	free(buffer);

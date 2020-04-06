@@ -5,70 +5,138 @@
 
 int main() {
 
-    FILE* disk = fopen(vdisk_path, "rb+");
+    // FILE* disk = fopen(vdisk_path, "rb+");
 
     InitLLFS();
 
+    // Touch("file1", "/");
+
+    // Touch("file2", "/");
+
+    // Mkdir("dir1", "/");
+
+    // List("/");
+
+    int i = 0;
+
     while (1) {
-        int choice;
+        char command[64];
 
-        scanf("%d", &choice);
+        fgets(command, 64, stdin);
+        printf("length of command is %zu \n", strlen(command));
+        printf("the length of quit is %zu \n", strlen("quit\0"));
+        command[strlen(command) - 1] = '\0';
+        char *token;
 
-        if (choice == 1) {
-            create_file(disk, "file1", 0, "/");
-			// printf("iteration: 3\n");
-			Inode tmp3 = return_inode_struct(disk, ROOT_INODE);
-			// printf("tmp3 has %d children \n", tmp3.num_children);
-            // print_buffer(dataBitMap, 512);
-        }
-        else if (choice == 2) {
-            create_file(disk, "dir1", 1, "/");
-            // print_buffer(dataBitMap, 512);            
-        }
-        else if (choice == 3) {
-            create_file(disk, "dir2", 1, "/");
-            // print_buffer(dataBitMap, 512);            
-        }
-        else if (choice == 4) {
-            create_file(disk, "dir3", 1, "/");
-            // print_buffer(dataBitMap, 512);            
-        }
-        else if (choice == 5) {
-            create_file(disk, "file2", 0, "/dir2");
-            // print_buffer(dataBitMap, 512);            
-        }
-		else if (choice == 6) {
-			create_file(disk, "file3", 0, "/dir3");
-		}
-        else if (choice == 7) {
-            create_file(disk, "dir4", 1, "/dir1");
-        }
-        else if (choice == 8) {
-            create_file(disk, "file4", 0, "/dir1/dir4");
-            create_file(disk, "file5", 0, "/dir1/dir4");
-        }
-        else if (choice == 9) {
-            delete_file(disk, "dir3", "/");
-        }
-        else  if (choice == 10) {
-            list_children(disk, ROOT_INODE);
-        }
-        else {
+        if (strcmp(command, "quit") == 0) {
             break;
         }
+
+        token = strtok(command, " ");
+
+        if (strcmp(token, "touch") == 0) {
+            char filename[32];
+            char path[32];
+            strcpy(filename, strtok(NULL, " "));
+            strcpy(path, strtok(NULL, " "));
+            Touch(filename, path);
+        }  
+        else if (strcmp(token, "mkdir") == 0) {
+            char filename[32];
+            char path[32];
+            strcpy(filename, strtok(NULL, " "));
+            strcpy(path, strtok(NULL, " "));
+            Mkdir(filename, path);
+        }
+        else if (strcmp(token, "ls") == 0) {
+            char path[32];
+            strcpy(path, strtok(NULL, " "));
+            List(path);
+        }
+        // while (token != NULL) {
+        //     printf("%s \n", token);
+        //     token = strtok(NULL, " ");
+        // }
+
+        // if (strcmp(token, "touch") == 0) {
+
+            
+            
+        //     // token = strtok(NULL, " ");
+        //     // char *filename;
+
+        //     // strncpy(filename, token, strlen(token));
+
+        //     // token = strtok(NULL, " ");
+        //     // char *path;
+
+        //     // strncpy(path, token, strlen(token));
+
+        //     // printf("filename is %s and path is %s \n", filename, path);
+
+        // }
     }
 
-	printf("And now here are the children of root(/)\n");
-	list_children(disk, ROOT_INODE);
+    // while (1) {
+    //     int choice;
 
-	printf("And now here are the children of dir2 \n");
-	list_children(disk, 6);
+    //     scanf("%d", &choice);
 
-	printf("And now here are the children of dir3\n");
-	list_children(disk, 7);
+    //     if (choice == 1) {
+    //         create_file(disk, "file1", 0, "/");
+	// 		// printf("iteration: 3\n");
+	// 		Inode tmp3 = return_inode_struct(disk, ROOT_INODE);
+	// 		// printf("tmp3 has %d children \n", tmp3.num_children);
+    //         // print_buffer(dataBitMap, 512);
+    //     }
+    //     else if (choice == 2) {
+    //         create_file(disk, "dir1", 1, "/");
+    //         // print_buffer(dataBitMap, 512);            
+    //     }
+    //     else if (choice == 3) {
+    //         create_file(disk, "dir2", 1, "/");
+    //         // print_buffer(dataBitMap, 512);            
+    //     }
+    //     else if (choice == 4) {
+    //         create_file(disk, "dir3", 1, "/");
+    //         // print_buffer(dataBitMap, 512);            
+    //     }
+    //     else if (choice == 5) {
+    //         create_file(disk, "file2", 0, "/dir2");
+    //         // print_buffer(dataBitMap, 512);            
+    //     }
+	// 	else if (choice == 6) {
+	// 		create_file(disk, "file3", 0, "/dir3");
+	// 	}
+    //     else if (choice == 7) {
+    //         create_file(disk, "dir4", 1, "/dir1");
+    //     }
+    //     else if (choice == 8) {
+    //         create_file(disk, "file4", 0, "/dir1/dir4");
+    //         create_file(disk, "file5", 0, "/dir1/dir4");
+    //     }
+    //     else if (choice == 9) {
+    //         delete_file(disk, "file4", "/dir1/dir4");
+    //     }
+    //     else  if (choice == 10) {
+    //         list_children(disk, 8);
+    //     }
+    //     else {
+    //         break;
+    //     }
+    // }
 
-    printf("And now here are the children of dir4\n");
-    list_children(disk, 10);
+	// printf("And now here are the children of root(/)\n");
+	// list_children(disk, ROOT_INODE);
+
+	// printf("And now here are the children of dir2 \n");
+	// list_children(disk, 6);
+
+	// printf("And now here are the children of dir3\n");
+	// list_children(disk, 7);
+
+    // printf("And now here are the children of dir4\n");
+    // list_children(disk, 8);
 
 
 

@@ -1,6 +1,6 @@
 #include "../disk/disk.h"
 
-#define MAX_FILE_NAME 64
+#define MAX_FILE_NAME 32
 #define MAX_CHILDREN 16
 #define ROOT_INODE 3
 #define MAX_FILE_SIZE 12 * BLOCK_SIZE
