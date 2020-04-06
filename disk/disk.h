@@ -4,4 +4,3 @@
 
 void readBlock(FILE* disk, int blockNum, char* buffer);
 void writeBlock(FILE* disk, int blockNum, char* data);
-void readBlock4Bytes(FILE* disk, int blockNum, char* buffer);

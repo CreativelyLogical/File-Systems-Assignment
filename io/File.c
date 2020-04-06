@@ -149,7 +149,7 @@ int find_parent_file_path(FILE *disk, char *path) {
 			// read the block where the file is
 			readBlock(disk, childInodeStruct.directBlock[0], fileBuffer); 
 
-			// copy from the file to a File struct
+			// copy from the file to a Directory struct
 
 			Directory tmpDir;
 			memcpy((char*) &tmpDir, fileBuffer, 68);
@@ -232,6 +232,11 @@ int delete_file(FILE *disk, char *name, char *path) {
 	int parentInodeNum;
 
 	Inode parent;
+	
+	if (strcmp(name, "/") == 0) {
+		printf("cannot delete root directory\n");
+		return -1;
+	}
 
 	if (strcmp(path, "/") == 0) {
 		parentInodeNum = ROOT_INODE;
@@ -252,9 +257,37 @@ int delete_file(FILE *disk, char *name, char *path) {
 
 	if (child.type == 1) { // child is a directory
 		if (child.num_children != 0) {	// directory is non-empty
-			printf("Cannot remove directory yet.\n");
-			return -1;
+			// printf("Cannot remove directory yet.\n");
+			char newPath[64];
+			strcpy(newPath, path);
+			if (strcmp(path, "/") != 0) {
+				newPath[strlen(newPath)] = '/';
+			}		
+			strcat(newPath, name);
+			for (int i = 0; i < child.num_children; i++) {
+				int subFileInodeNum = child.childrenInodes[i];
+				Inode subFileStruct = return_inode_struct(disk, subFileInodeNum);
+				char subFileName[MAX_FILE_NAME];
+				if (subFileStruct.type == 0) {
+					File tmp;
+					char buffer[BLOCK_SIZE];
+					readBlock(disk, subFileStruct.directBlock[0], buffer);
+					memcpy((char*) &tmp, buffer, sizeof(tmp));
+					printf("the subfile's name is %s \n", tmp.name);
+					strcpy(subFileName, tmp.name);
+				} else {
+					Directory tmp;
+					char buffer[BLOCK_SIZE];
+					readBlock(disk, subFileStruct.directBlock[0], buffer);
+					memcpy((char*) &tmp, buffer, 68);
+					strcpy(subFileName, tmp.name);
+				}
+				delete_file(disk, subFileName, newPath);
+			}
 		}
+		// now assume we have deleted all subdirectories and files
+		// deallocate inodes and blocks
+
 	}
 	char *init = calloc(BLOCK_SIZE, 1);
 
@@ -266,9 +299,16 @@ int delete_file(FILE *disk, char *name, char *path) {
 	}
 
 	// set the blocks of file as free
-	for (int i = 0; i < 13; i++) {
-		unset_bit(dataBitMap, startingBlock + 0);
+	if (child.type == 1) { // child is a directory
+		for (int i = 0; i < 3; i++) {
+			unset_bit(dataBitMap, startingBlock + i);
+		}
+	} else {
+		for (int i = 0; i < 13; i++) { // child is a regular file
+			unset_bit(dataBitMap, startingBlock + i);
+		}
 	}
+	
 
 	// deallocate inode
 	writeBlock(disk, childInodeNum, init);
@@ -308,7 +348,7 @@ int delete_file(FILE *disk, char *name, char *path) {
 	// update the parent in the disk
 	writeBlock(disk, parentInodeNum, (char*) (inode + parentInodeNum));
 
-	return -1;
+	return 1;
 }
 
 
@@ -336,6 +376,11 @@ int create_file(FILE *disk, char *name, int type, char *path) {
 		path_to_tokenize[strlen(path)] = '\0';
 
 		int parent = find_parent_file_path(disk, path_to_tokenize);
+
+		if (parent == -1) {
+			printf("directory %s does not exist \n", path);
+			return -1;
+		}
 
 		if (find_duplicates(disk, name, parent) == 1) {
 			printf("file already exists in this directory\n");
@@ -473,29 +518,29 @@ int create_file(FILE *disk, char *name, int type, char *path) {
 
 	// printf("parent now has %d children \n", tmp2.num_children);
 
-	return -1;
+	return 1;
 }
 
 int Touch(char *name, char *path) {
 	FILE* disk = fopen(vdisk_path, "rb+");
 
-	create_file(disk, name, 0, path);
-	printf("Created file %s in %s \n", name, path);
+	int outcome = create_file(disk, name, 0, path);
+	// printf("Created file %s in %s \n", name, path);
 
 	fclose(disk);
 	
-	return 1;
+	return outcome;
 }
 
 int Mkdir(char *name, char *path) {
 	FILE* disk = fopen(vdisk_path, "rb+");
 
-	create_file(disk, name, 1, path);
-	printf("Created directory %s in %s \n", name, path);
+	int outcome = create_file(disk, name, 1, path);
+	// printf("Created directory %s in %s \n", name, path);
 
 	fclose(disk);
 
-	return 1;
+	return outcome;
 }
 
 int List(char *path) {
@@ -506,12 +551,26 @@ int List(char *path) {
 	}
 	else {
 		int inode = find_parent_file_path(disk, path);
+		if (inode == -1) {
+			printf("path %s does not exist \n", path);
+			return -1;
+		}
 		list_children(disk, inode);
 	}
 
 	fclose(disk);
 
 	return 1;
+}
+
+int Rm(char *name, char *path) {
+	FILE* disk = fopen(vdisk_path, "rb+");
+
+	int outcome = delete_file(disk, name, path);
+
+	fclose(disk);
+
+	return outcome;
 }
 
 
