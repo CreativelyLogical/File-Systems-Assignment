@@ -352,6 +352,118 @@ int delete_file(FILE *disk, char *name, char *path) {
 	return 1;
 }
 
+int write_to_file(FILE* disk, char *name, char *path, char *content) {
+	/*
+	The plan: 
+	1. Find the file we're writing to
+		- get parent from the path
+		- get child from name and parent
+		- get the inode structure of the child
+		- get the blocks the child inode is pointing to
+	2. Write to the blocks 
+		- initialize a buffer of size 512 (BLOCK_SIZE)
+		- copy the content to the buffer
+		- append the buffer to file struct's content attribute
+		- write the content attribute's content to the block the inode of the child
+		  is pointing to
+		- ??
+		- profit
+	Note: we cannot write to directories, therefore if file is a directory, return
+		  from function
+	*/
+	// get parent from path
+
+	printf("content is %s \n", content);
+
+	int parentInodeNum;
+
+	if (strcmp(path, "/") == 0) {
+		parentInodeNum = ROOT_INODE;
+	}
+	else {
+		parentInodeNum = find_parent_file_path(disk, path);
+	}
+
+	Inode parent = return_inode_struct(disk, parentInodeNum);
+
+	// get child from name and parent
+	int childInodeNum = find_child_inode_from_parent(disk, parent, name);
+
+
+	// get inode structure of child
+	Inode child = return_inode_struct(disk, childInodeNum);
+
+
+	// check if file is directory, if directory, return
+	if (child.type == 1) {
+		printf("Cannot write to directories \n");
+		return -1;
+	}
+
+	// get the file struct from disk
+	File tmpfile;
+
+	char fileBuffer[512];
+
+	readBlock(disk, child.directBlock[0], fileBuffer);
+
+	memcpy((char*) &tmpfile, fileBuffer, sizeof(tmpfile));
+
+	// initialize buffer
+	char buffer[512];
+
+	// modify the file's contents
+	strcpy(buffer, content);
+
+	strcpy(tmpfile.content, buffer);
+
+	// write the file back to disk
+	writeBlock(disk, child.directBlock[0], (char*) &tmpfile);
+
+	// also update the file's size, since it has changed
+	child.size = strlen(buffer);
+
+	writeBlock(disk, childInodeNum, (char*) &child);
+
+	return 1;
+}
+
+
+int read_from_file(FILE* disk, char *name, char *path) {
+
+	int parentInodeNum;
+
+	if (strcmp(path, "/") == 0) {
+		parentInodeNum = ROOT_INODE;
+	}
+	else {
+		parentInodeNum = find_parent_file_path(disk, path);
+	}
+
+	Inode parent = return_inode_struct(disk, parentInodeNum);
+
+	int childInodeNum = find_child_inode_from_parent(disk, parent, name);
+
+	Inode child = return_inode_struct(disk, childInodeNum);
+
+	if (child.type == 1) {
+		list_children(disk, childInodeNum);
+		return 1;
+	}
+
+	File tmpFile;
+
+	char buffer[BLOCK_SIZE];
+
+	readBlock(disk, child.directBlock[0], buffer);
+
+	memcpy((char*) &tmpFile, buffer, sizeof(tmpFile));
+
+	printf("%s \n", tmpFile.content);
+
+	return 1;
+
+}
 
 
 int create_file(FILE *disk, char *name, int type, char *path) {
@@ -571,6 +683,28 @@ int Rm(char *name, char *path) {
 	return outcome;
 }
 
+
+int Write(char *name, char *path, char *buffer) {
+	FILE* disk = fopen(vdisk_path, "rb+");
+
+	printf("buffer is %s \n", buffer);
+	int outcome = write_to_file(disk, name, path, buffer);
+
+	fclose(disk);
+
+	return outcome;
+}
+
+int Read(char *name, char *path) {
+	FILE* disk = fopen(vdisk_path, "rb+");
+
+	// printf("we came here atleast\n");
+	int outcome = read_from_file(disk, name, path);
+
+	fclose(disk);
+
+	return outcome;
+}
 
 void InitLLFS() {
 	FILE* disk = fopen(vdisk_path, "wb"); // ab creates file if none exists
