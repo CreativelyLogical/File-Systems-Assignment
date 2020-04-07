@@ -68,7 +68,7 @@ int get_free_block() {
 	// because blocks 4 to 132 are for inodes 
 	for (int i = 133; i < NUM_BLOCKS; i++) {
 		if (get_bit(dataBitMap, i) == 0) {
-			printf("block %d is free \n", i);
+			// printf("block %d is free \n", i);
 			set_bit(dataBitMap, i, 1);
 			return i;
 		}
@@ -105,7 +105,7 @@ void list_children(FILE *disk, int inodeNum) {
 
 		File curFile;
 		memcpy((char*) &curFile, fileBuffer, 68);
-		printf("the name of the file is %s \n", curFile.name);
+		printf("inode: %d   file name: %s   size: %d bytes \n", curFile.inode, curFile.name, childInodeStruct.size);
 	}
 }
 
@@ -115,7 +115,7 @@ void list_child_inodes(FILE *disk, int inodeNum) {
 	for (int i = 0; i < curInode.num_children; i++) {
 		int childInode = curInode.childrenInodes[i];
 		Inode childInodeStruct = return_inode_struct(disk, childInode);
-		printf("child %d is %d and it starts at block %d\n", i, childInode, childInodeStruct.directBlock[0]);
+		// printf("child %d is %d and it starts at block %d\n", i, childInode, childInodeStruct.directBlock[0]);
 	}
 }
 
@@ -133,7 +133,7 @@ int find_parent_file_path(FILE *disk, char *path) {
 
 	// Note, the only things the tokens SHOULD be are directories
 	while (token != NULL) {
-		printf("%s \n", token);
+		// printf("%s \n", token);
 		
 		// iterate through the inode of parent directory
 		for (int i = 0; i < curInode.num_children; i++) {
@@ -226,7 +226,7 @@ int find_duplicates(FILE *disk, char *name, int parentInode) {
 
 
 int delete_file(FILE *disk, char *name, char *path) {
-	printf("hello world\n");
+	// printf("hello world\n");
 
 	// find the inode of the file
 	int parentInodeNum;
@@ -273,7 +273,7 @@ int delete_file(FILE *disk, char *name, char *path) {
 					char buffer[BLOCK_SIZE];
 					readBlock(disk, subFileStruct.directBlock[0], buffer);
 					memcpy((char*) &tmp, buffer, sizeof(tmp));
-					printf("the subfile's name is %s \n", tmp.name);
+					// printf("the subfile's name is %s \n", tmp.name);
 					strcpy(subFileName, tmp.name);
 				} else {
 					Directory tmp;
@@ -295,6 +295,7 @@ int delete_file(FILE *disk, char *name, char *path) {
 
 	// deallocate content storing blocks of file
 	for (int i = 0; i < child.blockCount; i++) {
+		// printf("deallocating block %d of file %s \n", child.directBlock[i], name);
 		writeBlock(disk, child.directBlock[i], init);
 	}
 
@@ -455,7 +456,7 @@ int create_file(FILE *disk, char *name, int type, char *path) {
 		}
 
 		if (get_bit(dataBitMap, blockNum + 1) == 1) {
-			printf("this was set \n");
+			// printf("this was set \n");
 		}
 		// create the file
 		file[inodeNum].inode = inodeNum;
@@ -472,6 +473,7 @@ int create_file(FILE *disk, char *name, int type, char *path) {
 	// store file into disk
 	if (type == 1) {
 		writeBlock(disk, blockNum, (char*) (directory + inodeNum)); // if directory
+		// printf("storing directory %s in block %d \n", name, blockNum);
 	} else {
 		writeBlock(disk, blockNum, (char*) (file + inodeNum)); // if regular file
 	}
@@ -504,17 +506,13 @@ int create_file(FILE *disk, char *name, int type, char *path) {
 	writeBlock(disk, parentInode, (char*) (inode + parentInode)); // update the parent inode
 
 
-	printf("iteration: 2\n");
+	// printf("iteration: 2\n");
 	Inode tmp2 = return_inode_struct(disk, parentInode);
 
 
 	// update the bitmaps
 	writeBlock(disk, 1, inodeBitMap);
 	writeBlock(disk, 2, dataBitMap);
-
-	if (get_bit(dataBitMap, 144) == 0) {
-		printf("WTF\n");
-	}
 
 	// printf("parent now has %d children \n", tmp2.num_children);
 
@@ -645,8 +643,8 @@ void InitLLFS() {
 		4	-->    root directory content 		
 	*/
 
-	printf("the root directory inode is %d \n", rootInode);
-	printf("the root directory block is %d \n", rootDirBlock);
+	// printf("the root directory inode is %d \n", rootInode);
+	// printf("the root directory block is %d \n", rootDirBlock);
 
 	// char* inodeBuf = (char *) malloc(BLOCK_SIZE);
 
